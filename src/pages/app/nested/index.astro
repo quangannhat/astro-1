@@ -1,0 +1,14 @@
+---
+import Layout from "../../../layouts/Layout.astro";
+import ReactCounter from "./_components/ReactCounter";
+import SvelteCounter from "./_components/SvelteCounter.svelte";
+---
+
+<Layout>
+	<h1>Nested page</h1>
+	<ReactCounter client:load title="REACT RULES">
+		<SvelteCounter client:load>
+			<ReactCounter client:load />
+		</SvelteCounter>
+	</ReactCounter>
+</Layout>
