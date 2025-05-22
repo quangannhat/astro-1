@@ -1,20 +1,41 @@
 <!DOCTYPE html>
 <html is:raw>
 <head>
-  <title>Catch the Falling Boxes (jQuery Game, Dynamic Speed)</title>
+  <title>Catch the Falling Boxes (jQuery Game with Admin Panel)</title>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
-  <h2>Catch the Falling Boxes!</h2>
-  <div>
-    Score: <span id="score">0</span> |
-    Lives: <span id="lives">3</span>
-    <button id="restart-btn">Restart</button>
+  <div style="display:flex;align-items:flex-start;">
+    <div>
+      <h2>Catch the Falling Boxes!</h2>
+      <div>
+        Score: <span id="score">0</span> |
+        Lives: <span id="lives">3</span>
+        <button id="restart-btn">Restart</button>
+      </div>
+      <div id="game-area" style="position:relative;width:400px;height:500px;border:1px solid #000;overflow:hidden;margin-top:10px;">
+        <!-- Basket and boxes will be here -->
+      </div>
+      <div id="game-over" style="display:none;font-size:1.5em;color:red;">Game Over!</div>
+    </div>
+    <div id="admin-panel" style="margin-left:30px;display:none;">
+      <h3>Admin Panel</h3>
+      <form id="admin-form">
+        <div>
+          <label>Total Health: <input type="number" id="admin-health" min="1" value="3"></label>
+        </div>
+        <div>
+          <label>Initial Speed: <input type="number" id="admin-speed" min="0.1" step="0.1" value="1"></label>
+        </div>
+        <div>
+          <label>Points for Speed Up: <input type="number" id="admin-points" min="1" value="5"></label>
+        </div>
+        <div>
+          <button type="submit" id="apply-settings">Apply Settings</button>
+        </div>
+      </form>
+    </div>
   </div>
-  <div id="game-area" style="position:relative;width:400px;height:500px;border:1px solid #000;overflow:hidden;margin-top:10px;">
-    <!-- Basket and boxes will be here -->
-  </div>
-  <div id="game-over" style="display:none;font-size:1.5em;color:red;">Game Over!</div>
 
   <script>
     $(function () {
@@ -25,20 +46,26 @@
       var basketHeight = 20;
       var boxSize = 30;
       var basketSpeed = 20;
-      var initialBoxSpeed = 1; // Lower initial speed
-      var boxSpeed = initialBoxSpeed;
       var boxSpeedIncrement = 0.5;
       var boxInterval = 1200; // ms
+
+      // Difficulty settings (defaults)
+      var totalHealth = 3;
+      var initialBoxSpeed = 1;
+      var pointsForSpeedUp = 5;
+
+      // Game state
+      var boxSpeed = initialBoxSpeed;
       var score = 0;
-      var lives = 3;
+      var lives = totalHealth;
       var gameRunning = false;
       var basketLeft = (areaWidth - basketWidth) / 2;
       var basket, boxTimer, moveTimer;
       var boxes = [];
 
       function getBoxSpeed() {
-        // Increase speed by boxSpeedIncrement every 5 points
-        return initialBoxSpeed + boxSpeedIncrement * Math.floor(score / 5);
+        // Increase speed by boxSpeedIncrement every pointsForSpeedUp points
+        return initialBoxSpeed + boxSpeedIncrement * Math.floor(score / pointsForSpeedUp);
       }
 
       function createBasket() {
@@ -115,12 +142,16 @@
         }
       }
 
+      function showAdminPanel(show) {
+        $('#admin-panel').css('display', show ? 'block' : 'none');
+      }
+
       function startGame() {
         // Reset
         $gameArea.empty();
         $('#game-over').hide();
         score = 0;
-        lives = 3;
+        lives = totalHealth;
         boxSpeed = initialBoxSpeed;
         $('#score').text(score);
         $('#lives').text(lives);
@@ -128,6 +159,7 @@
         boxes = [];
         gameRunning = true;
         createBasket();
+        showAdminPanel(false);
 
         // Start box dropper
         boxTimer = setInterval(function () {
@@ -149,6 +181,7 @@
         cancelAnimationFrame(moveTimer);
         $('.falling-box').remove();
         $('#game-over').show();
+        showAdminPanel(true);
       }
 
       // Keyboard controls
@@ -165,8 +198,24 @@
         if (!gameRunning) startGame();
       });
 
-      // Start on load
-      startGame();
+      // Admin panel logic
+      function applyAdminSettings() {
+        totalHealth = parseInt($('#admin-health').val(), 10) || 1;
+        initialBoxSpeed = parseFloat($('#admin-speed').val()) || 0.1;
+        pointsForSpeedUp = parseInt($('#admin-points').val(), 10) || 1;
+        $('#lives').text(totalHealth);
+      }
+
+      $('#admin-form').on('submit', function (e) {
+        e.preventDefault();
+        applyAdminSettings();
+      });
+
+      // Show admin panel on load
+      showAdminPanel(true);
+
+      // Apply settings on load
+      applyAdminSettings();
     });
   </script>
 </body>

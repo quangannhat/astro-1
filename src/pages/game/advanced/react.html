@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>React Catch the Falling Boxes with Admin Panel</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="text/babel">
+      // Constants
+      const GAME_WIDTH = 400;
+      const GAME_HEIGHT = 500;
+      const BASKET_WIDTH = 60;
+      const BASKET_HEIGHT = 20;
+      const BOX_SIZE = 30;
+      const BASKET_SPEED = 20;
+      const BOX_SPEED_INCREMENT = 0.5;
+      const BOX_INTERVAL = 1200; // ms
+
+      // Utility
+      function getRandomLeft() {
+        return Math.floor(Math.random() * (GAME_WIDTH - BOX_SIZE));
+      }
+
+      // Components
+      function Box({ left, top }) {
+        return (
+          <div
+            style={{
+              position: "absolute",
+              width: BOX_SIZE,
+              height: BOX_SIZE,
+              left,
+              top,
+              background: "#09c",
+              borderRadius: 5,
+            }}
+          />
+        );
+      }
+
+      function Basket({ left }) {
+        return (
+          <div
+            style={{
+              position: "absolute",
+              width: BASKET_WIDTH,
+              height: BASKET_HEIGHT,
+              left,
+              top: GAME_HEIGHT - BASKET_HEIGHT,
+              background: "#444",
+            }}
+          />
+        );
+      }
+
+      function GameOver({ score, onRestart }) {
+        return (
+          <div
+            style={{
+              position: "absolute",
+              top: "40%",
+              left: 0,
+              width: "100%",
+              textAlign: "center",
+              fontSize: "1.5em",
+              color: "red",
+              background: "rgba(255,255,255,0.8)",
+              padding: 20,
+            }}
+          >
+            <div>Game Over!</div>
+            <div>Your score: {score}</div>
+            <button onClick={onRestart} style={{ marginTop: 10 }}>
+              Restart
+            </button>
+          </div>
+        );
+      }
+
+      function AdminPanel({
+        show,
+        health,
+        speed,
+        points,
+        onChange,
+        onApply,
+      }) {
+        if (!show) return null;
+        return (
+          <div style={{ marginLeft: 30 }}>
+            <h3>Admin Panel</h3>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                onApply();
+              }}
+            >
+              <div>
+                <label>
+                  Total Health:{" "}
+                  <input
+                    type="number"
+                    min="1"
+                    value={health}
+                    onChange={(e) => onChange("health", e.target.value)}
+                  />
+                </label>
+              </div>
+              <div>
+                <label>
+                  Initial Speed:{" "}
+                  <input
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    value={speed}
+                    onChange={(e) => onChange("speed", e.target.value)}
+                  />
+                </label>
+              </div>
+              <div>
+                <label>
+                  Points for Speed Up:{" "}
+                  <input
+                    type="number"
+                    min="1"
+                    value={points}
+                    onChange={(e) => onChange("points", e.target.value)}
+                  />
+                </label>
+              </div>
+              <div>
+                <button type="submit" style={{ marginTop: 10 }}>
+                  Apply Settings
+                </button>
+              </div>
+            </form>
+          </div>
+        );
+      }
+
+      // Main Game Component
+      function Game() {
+        // Admin/difficulty state
+        const [adminHealth, setAdminHealth] = React.useState(3);
+        const [adminSpeed, setAdminSpeed] = React.useState(1);
+        const [adminPoints, setAdminPoints] = React.useState(5);
+
+        // Game state
+        const [totalHealth, setTotalHealth] = React.useState(adminHealth);
+        const [initialBoxSpeed, setInitialBoxSpeed] = React.useState(adminSpeed);
+        const [pointsForSpeedUp, setPointsForSpeedUp] = React.useState(adminPoints);
+
+        const [score, setScore] = React.useState(0);
+        const [lives, setLives] = React.useState(totalHealth);
+        const [basketLeft, setBasketLeft] = React.useState(
+          (GAME_WIDTH - BASKET_WIDTH) / 2
+        );
+        const [boxes, setBoxes] = React.useState([]);
+        const [gameOver, setGameOver] = React.useState(true); // Start with admin panel
+        const [gameStarted, setGameStarted] = React.useState(false);
+
+        // For animation and box dropping intervals
+        const animationRef = React.useRef();
+        const boxIntervalRef = React.useRef();
+
+        // Calculate current box speed
+        const getBoxSpeed = React.useCallback(
+          () =>
+            parseFloat(initialBoxSpeed) +
+            BOX_SPEED_INCREMENT * Math.floor(score / pointsForSpeedUp),
+          [initialBoxSpeed, score, pointsForSpeedUp]
+        );
+
+        // Keyboard controls
+        React.useEffect(() => {
+          function handleKeyDown(e) {
+            if (gameOver) return;
+            if (e.key === "ArrowLeft") {
+              setBasketLeft((left) =>
+                Math.max(0, left - BASKET_SPEED)
+              );
+            } else if (e.key === "ArrowRight") {
+              setBasketLeft((left) =>
+                Math.min(GAME_WIDTH - BASKET_WIDTH, left + BASKET_SPEED)
+              );
+            }
+          }
+          window.addEventListener("keydown", handleKeyDown);
+          return () => window.removeEventListener("keydown", handleKeyDown);
+        }, [gameOver]);
+
+        // Drop new boxes at intervals
+        React.useEffect(() => {
+          if (gameOver) return;
+          boxIntervalRef.current = setInterval(() => {
+            setBoxes((prev) => [
+              ...prev,
+              {
+                id: Math.random().toString(36).slice(2),
+                left: getRandomLeft(),
+                top: 0,
+              },
+            ]);
+          }, BOX_INTERVAL);
+          return () => clearInterval(boxIntervalRef.current);
+        }, [gameOver]);
+
+        // Animate boxes
+        React.useEffect(() => {
+          if (gameOver) return;
+          function animate() {
+            setBoxes((prevBoxes) => {
+              let newBoxes = [];
+              let caught = 0;
+              let missed = 0;
+              const boxSpeed = getBoxSpeed();
+              prevBoxes.forEach((box) => {
+                const newTop = box.top + boxSpeed;
+                // Check for collision with basket
+                const basketTop = GAME_HEIGHT - BASKET_HEIGHT;
+                const basketRight = basketLeft + BASKET_WIDTH;
+                const boxRight = box.left + BOX_SIZE;
+                if (
+                  newTop + BOX_SIZE >= basketTop &&
+                  box.left < basketRight &&
+                  boxRight > basketLeft
+                ) {
+                  caught++;
+                  return; // Don't add to newBoxes (caught)
+                }
+                // Check if missed
+                if (newTop + BOX_SIZE >= GAME_HEIGHT) {
+                  missed++;
+                  return; // Don't add to newBoxes (missed)
+                }
+                newBoxes.push({ ...box, top: newTop });
+              });
+              if (caught > 0) setScore((s) => s + caught);
+              if (missed > 0) {
+                setLives((l) => {
+                  if (l - missed <= 0) {
+                    setGameOver(true);
+                  }
+                  return l - missed;
+                });
+              }
+              return newBoxes;
+            });
+            animationRef.current = requestAnimationFrame(animate);
+          }
+          animationRef.current = requestAnimationFrame(animate);
+          return () => cancelAnimationFrame(animationRef.current);
+        }, [basketLeft, gameOver, getBoxSpeed]);
+
+        // Start or restart the game
+        function handleRestart() {
+          setScore(0);
+          setLives(totalHealth);
+          setBasketLeft((GAME_WIDTH - BASKET_WIDTH) / 2);
+          setBoxes([]);
+          setGameOver(false);
+          setGameStarted(true);
+        }
+
+        // Admin panel handlers
+        function handleAdminChange(field, value) {
+          if (field === "health") setAdminHealth(value);
+          if (field === "speed") setAdminSpeed(value);
+          if (field === "points") setAdminPoints(value);
+        }
+
+        function handleAdminApply() {
+          setTotalHealth(parseInt(adminHealth, 10) || 1);
+          setInitialBoxSpeed(parseFloat(adminSpeed) || 0.1);
+          setPointsForSpeedUp(parseInt(adminPoints, 10) || 1);
+          setScore(0);
+          setLives(parseInt(adminHealth, 10) || 1);
+          setBoxes([]);
+          setGameOver(true);
+          setGameStarted(false);
+        }
+
+        // Show admin panel if game is over or not started
+        const showAdminPanel = gameOver || !gameStarted;
+
+        return (
+          <div style={{ display: "flex", alignItems: "flex-start" }}>
+            <div>
+              <h2>Catch the Falling Boxes!</h2>
+              <div>
+                Score: <span id="score">{score}</span> | Lives:{" "}
+                <span id="lives">{lives}</span>
+                <button
+                  id="restart-btn"
+                  onClick={handleRestart}
+                  style={{ marginLeft: 10 }}
+                  disabled={!showAdminPanel && lives === totalHealth && score === 0}
+                >
+                  Restart
+                </button>
+              </div>
+              <div
+                id="game-area"
+                style={{
+                  position: "relative",
+                  width: GAME_WIDTH,
+                  height: GAME_HEIGHT,
+                  border: "1px solid #000",
+                  overflow: "hidden",
+                  marginTop: 10,
+                  background: "#f8f8f8",
+                }}
+              >
+                <Basket left={basketLeft} />
+                {boxes.map((box) => (
+                  <Box key={box.id} left={box.left} top={box.top} />
+                ))}
+                {gameOver && gameStarted && (
+                  <GameOver score={score} onRestart={handleRestart} />
+                )}
+              </div>
+            </div>
+            <AdminPanel
+              show={showAdminPanel}
+              health={adminHealth}
+              speed={adminSpeed}
+              points={adminPoints}
+              onChange={handleAdminChange}
+              onApply={handleAdminApply}
+            />
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<Game />);
+    </script>
+  </body>
+</html>
+

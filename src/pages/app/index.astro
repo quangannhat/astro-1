@@ -1,0 +1,15 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Counter from "./_components/AstroCounter.astro";
+import ReactCounter from "./_components/ReactCounter.tsx";
+import Card from "./_components/Card.tsx";
+---
+
+<Layout>
+	<main class="flex flex-col gap-4 p-10">
+		<ReactCounter client:load />
+		<Card title="React component">
+			<Counter />
+		</Card>
+	</main>
+</Layout>
