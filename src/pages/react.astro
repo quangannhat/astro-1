@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en" is:raw>
+  <head>
+    <meta charset="UTF-8" />
+    <title>React Shopping Cart - Composable Components</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="text/babel">
+      // CartBadge: shows the number of unique products in the cart
+      function CartBadge({ count }) {
+        return (
+          <span style={{ fontSize: "1.2em" }}>
+            🛒 Cart: <span id="cart-badge">{count}</span> items
+          </span>
+        );
+      }
+
+      // ProductList: lists products and handles add-to-cart
+      function ProductList({ products, cart, onAddToCart }) {
+        return (
+          <div>
+            <h2>Products</h2>
+            <ul>
+              {products.map((product) => {
+                const qtyInCart = cart[product.id]?.qty || 0;
+                return (
+                  <li key={product.id}>
+                    {product.name} - ${product.price.toFixed(2)} (In stock: {product.instock})
+                    <button
+                      onClick={() => onAddToCart(product)}
+                      disabled={qtyInCart >= product.instock}
+                      style={{ marginLeft: 8 }}
+                    >
+                      Add to Cart
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        );
+      }
+
+      // CartTable: shows cart items and remove buttons
+      function CartTable({ cart, onRemoveFromCart }) {
+        return (
+          <div>
+            <h2>Shopping Cart</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Qty</th>
+                  <th>Price</th>
+                  <th>Remove</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.values(cart).map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.name}</td>
+                    <td>{item.qty}</td>
+                    <td>${(item.price * item.qty).toFixed(2)}</td>
+                    <td>
+                      <button onClick={() => onRemoveFromCart(item.id)}>
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
+
+      // CartTotal: shows the total price
+      function CartTotal({ cart }) {
+        const total = Object.values(cart).reduce(
+          (sum, item) => sum + item.price * item.qty,
+          0
+        );
+        return (
+          <table>
+            <tfoot>
+              <tr>
+                <td colSpan={2}>
+                  <strong>Total</strong>
+                </td>
+                <td colSpan={2}>${total.toFixed(2)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        );
+      }
+
+      // App: main container, holds state and handlers
+      function App() {
+        const initialProducts = [
+          { id: 1, name: "Apple", price: 1.0, instock: 3 },
+          { id: 2, name: "Banana", price: 0.5, instock: 2 },
+          { id: 3, name: "Orange", price: 0.8, instock: 5 },
+        ];
+
+        const [products] = React.useState(initialProducts);
+        const [cart, setCart] = React.useState({});
+
+        const addToCart = (product) => {
+          setCart((prevCart) => {
+            const currentQty = prevCart[product.id]?.qty || 0;
+            if (currentQty < product.instock) {
+              return {
+                ...prevCart,
+                [product.id]: {
+                  ...product,
+                  qty: currentQty + 1,
+                },
+              };
+            }
+            return prevCart;
+          });
+        };
+
+        const removeFromCart = (id) => {
+          setCart((prevCart) => {
+            const newCart = { ...prevCart };
+            delete newCart[id];
+            return newCart;
+          });
+        };
+
+        const cartCount = Object.keys(cart).length;
+
+        return (
+          <div>
+            <CartBadge count={cartCount} />
+            <ProductList
+              products={products}
+              cart={cart}
+              onAddToCart={addToCart}
+            />
+            <CartTable cart={cart} onRemoveFromCart={removeFromCart} />
+            <CartTotal cart={cart} />
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<App />);
+    </script>
+  </body>
+</html>
+

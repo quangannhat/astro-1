@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html is:raw>
+<head>
+  <title>Catch the Falling Boxes (jQuery Game, Dynamic Speed)</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+  <h2>Catch the Falling Boxes!</h2>
+  <div>
+    Score: <span id="score">0</span> |
+    Lives: <span id="lives">3</span>
+    <button id="restart-btn">Restart</button>
+  </div>
+  <div id="game-area" style="position:relative;width:400px;height:500px;border:1px solid #000;overflow:hidden;margin-top:10px;">
+    <!-- Basket and boxes will be here -->
+  </div>
+  <div id="game-over" style="display:none;font-size:1.5em;color:red;">Game Over!</div>
+
+  <script>
+    $(function () {
+      var $gameArea = $('#game-area');
+      var areaWidth = $gameArea.width();
+      var areaHeight = $gameArea.height();
+      var basketWidth = 60;
+      var basketHeight = 20;
+      var boxSize = 30;
+      var basketSpeed = 20;
+      var initialBoxSpeed = 1; // Lower initial speed
+      var boxSpeed = initialBoxSpeed;
+      var boxSpeedIncrement = 0.5;
+      var boxInterval = 1200; // ms
+      var score = 0;
+      var lives = 3;
+      var gameRunning = false;
+      var basketLeft = (areaWidth - basketWidth) / 2;
+      var basket, boxTimer, moveTimer;
+      var boxes = [];
+
+      function getBoxSpeed() {
+        // Increase speed by boxSpeedIncrement every 5 points
+        return initialBoxSpeed + boxSpeedIncrement * Math.floor(score / 5);
+      }
+
+      function createBasket() {
+        basket = $('<div></div>')
+          .css({
+            position: 'absolute',
+            width: basketWidth + 'px',
+            height: basketHeight + 'px',
+            left: basketLeft + 'px',
+            top: (areaHeight - basketHeight) + 'px',
+            background: '#444'
+          })
+          .attr('id', 'basket');
+        $gameArea.append(basket);
+      }
+
+      function moveBasket(dir) {
+        if (!gameRunning) return;
+        if (dir === 'left') {
+          basketLeft = Math.max(0, basketLeft - basketSpeed);
+        } else if (dir === 'right') {
+          basketLeft = Math.min(areaWidth - basketWidth, basketLeft + basketSpeed);
+        }
+        basket.css('left', basketLeft + 'px');
+      }
+
+      function createBox() {
+        var left = Math.floor(Math.random() * (areaWidth - boxSize));
+        var $box = $('<div></div>')
+          .css({
+            position: 'absolute',
+            width: boxSize + 'px',
+            height: boxSize + 'px',
+            left: left + 'px',
+            top: '0px',
+            background: '#09c',
+            borderRadius: '5px'
+          })
+          .addClass('falling-box');
+        $gameArea.append($box);
+        boxes.push({ $el: $box, left: left, top: 0 });
+      }
+
+      function moveBoxes() {
+        boxSpeed = getBoxSpeed();
+        for (var i = boxes.length - 1; i >= 0; i--) {
+          var box = boxes[i];
+          box.top += boxSpeed;
+          box.$el.css('top', box.top + 'px');
+          // Check for collision with basket
+          if (
+            box.top + boxSize >= areaHeight - basketHeight &&
+            box.left + boxSize > basketLeft &&
+            box.left < basketLeft + basketWidth
+          ) {
+            // Caught!
+            score++;
+            $('#score').text(score);
+            box.$el.remove();
+            boxes.splice(i, 1);
+            continue;
+          }
+          // Check if box missed
+          if (box.top + boxSize >= areaHeight) {
+            lives--;
+            $('#lives').text(lives);
+            box.$el.remove();
+            boxes.splice(i, 1);
+            if (lives <= 0) {
+              endGame();
+              return;
+            }
+          }
+        }
+      }
+
+      function startGame() {
+        // Reset
+        $gameArea.empty();
+        $('#game-over').hide();
+        score = 0;
+        lives = 3;
+        boxSpeed = initialBoxSpeed;
+        $('#score').text(score);
+        $('#lives').text(lives);
+        basketLeft = (areaWidth - basketWidth) / 2;
+        boxes = [];
+        gameRunning = true;
+        createBasket();
+
+        // Start box dropper
+        boxTimer = setInterval(function () {
+          if (gameRunning) createBox();
+        }, boxInterval);
+
+        // Start animation loop
+        function animate() {
+          if (!gameRunning) return;
+          moveBoxes();
+          moveTimer = requestAnimationFrame(animate);
+        }
+        animate();
+      }
+
+      function endGame() {
+        gameRunning = false;
+        clearInterval(boxTimer);
+        cancelAnimationFrame(moveTimer);
+        $('.falling-box').remove();
+        $('#game-over').show();
+      }
+
+      // Keyboard controls
+      $(document).on('keydown', function (e) {
+        if (!gameRunning) return;
+        if (e.key === 'ArrowLeft') {
+          moveBasket('left');
+        } else if (e.key === 'ArrowRight') {
+          moveBasket('right');
+        }
+      });
+
+      $('#restart-btn').click(function () {
+        if (!gameRunning) startGame();
+      });
+
+      // Start on load
+      startGame();
+    });
+  </script>
+</body>
+</html>
+

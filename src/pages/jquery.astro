@@ -1,0 +1,132 @@
+---
+
+---
+<html>
+<head>
+  <title>Simple Shopping Cart with Stock and Unique Item Badge</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js" is:inline></script>
+</head>
+<body>
+  <div>
+    <span style="font-size: 1.2em;">
+      Cart: <span id="cart-badge">0</span> items
+    </span>
+  </div>
+
+  <h2>Products</h2>
+  <ul id="product-list">
+    <li data-id="1" data-name="Apple" data-price="1.00" data-instock="3">
+      Apple - $1.00 (In stock: 3)
+      <button class="add-to-cart">Add to Cart</button>
+    </li>
+    <li data-id="2" data-name="Banana" data-price="0.50" data-instock="2">
+      Banana - $0.50 (In stock: 2)
+      <button class="add-to-cart">Add to Cart</button>
+    </li>
+    <li data-id="3" data-name="Orange" data-price="0.80" data-instock="5">
+      Orange - $0.80 (In stock: 5)
+      <button class="add-to-cart">Add to Cart</button>
+    </li>
+  </ul>
+
+  <h2>Shopping Cart</h2>
+  <table id="cart">
+    <thead>
+      <tr>
+        <th>Product</th>
+        <th>Qty</th>
+        <th>Price</th>
+        <th>Remove</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Cart items will go here -->
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="2"><strong>Total</strong></td>
+        <td colspan="2" id="cart-total">$0.00</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <script>
+    $(function () {
+      var cart:any = {};
+
+      function updateCartBadge() {
+        // Count unique products in the cart
+        var uniqueItems = Object.keys(cart).length;
+        $('#cart-badge').text(uniqueItems);
+      }
+
+      function updateCart() {
+        var $tbody = $('#cart tbody');
+        $tbody.empty();
+        var total = 0;
+
+        $.each(cart, function (id, item:any) {
+          var row = $('<tr></tr>');
+          row.append('<td>' + item.name + '</td>');
+          row.append('<td>' + item.qty + '</td>');
+          row.append(
+            '<td>$' + (item.price * item.qty).toFixed(2) + '</td>'
+          );
+          row.append(
+            '<td><button class="remove-from-cart" data-id="' +
+              id +
+              '">Remove</button></td>'
+          );
+          $tbody.append(row);
+          total += item.price * item.qty;
+        });
+
+        $('#cart-total').text('$' + total.toFixed(2));
+        updateAddToCartButtons();
+        updateCartBadge();
+      }
+
+      function updateAddToCartButtons() {
+        $('#product-list li').each(function () {
+          var $li = $(this);
+          var id = $li.data('id');
+          var instock = parseInt($li.data('instock'), 10);
+          var qtyInCart = cart[id] ? cart[id].qty : 0;
+          var $btn = $li.find('.add-to-cart');
+          if (qtyInCart >= instock) {
+            $btn.prop('disabled', true);
+          } else {
+            $btn.prop('disabled', false);
+          }
+        });
+      }
+
+      $('#product-list').on('click', '.add-to-cart', function () {
+        var $li = $(this).closest('li');
+        var id = $li.data('id');
+        var name = $li.data('name');
+        var price = parseFloat($li.data('price'));
+        var instock = parseInt($li.data('instock'), 10);
+
+        if (cart[id]) {
+          if (cart[id].qty < instock) {
+            cart[id].qty += 1;
+          }
+        } else {
+          cart[id] = { name: name, price: price, qty: 1, instock: instock };
+        }
+        updateCart();
+      });
+
+      $('#cart').on('click', '.remove-from-cart', function () {
+        var id = $(this).data('id');
+        delete cart[id];
+        updateCart();
+      });
+
+      updateCart();
+    });
+  </script>
+</body>
+</html>
+
